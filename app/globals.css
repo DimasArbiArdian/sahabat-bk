@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom modern scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Glassmorphism utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+/* Gradient accents */
+.gradient-brand {
+  background: linear-gradient(135deg, #0d9488 0%, #10b981 100%);
+}
+
+.gradient-brand-subtle {
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.08) 0%, rgba(16, 185, 129, 0.04) 100%);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #0f766e 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Prose markdown stylings */
+.prose h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.prose h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #334155;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose p {
+  color: #475569;
+  line-height: 1.75;
+  margin-bottom: 1rem;
+}
+
+.prose ul, .prose ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+  color: #475569;
+}
+
+.prose li {
+  margin-bottom: 0.25rem;
+}
+
+.prose blockquote {
+  border-left: 4px solid #0d9488;
+  padding-left: 1rem;
+  font-style: italic;
+  color: #64748b;
+  margin: 1rem 0;
+}
