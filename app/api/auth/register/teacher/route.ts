@@ -1,4 +1,3 @@
-// Backend: API Route
 import { NextResponse } from "next/server";
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -8,24 +7,27 @@ import { z } from "zod";
 const prisma = new PrismaClient();
 
 const teacherSchema = z.object({
-  email: z.string().email("Invalid email format"),
-  fullname: z.string().min(3, "Full name must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  employeeId: z
-    .string()
-    .min(5, "Employee ID (NIP) must be at least 5 characters"),
-  phoneNumber: z
-    .string()
-    .regex(
-      /^62\d{9,12}$/,
-      "Phone number must start with 62 and be 11-14 digits long"
-    ),
+  email: z.string().email("Format email tidak valid"),
+  fullname: z.string().min(3, "Nama lengkap minimal 3 karakter"),
+  password: z.string().min(6, "Kata sandi minimal 6 karakter"),
+  employeeId: z.string().min(3, "NIP minimal 3 karakter"),
+  phoneNumber: z.string().min(8, "Nomor telepon minimal 8 digit"),
   schoolId: z.string().optional(),
 });
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    // Normalisasi nomor telepon
+    if (body.phoneNumber) {
+      let clean = String(body.phoneNumber).replace(/[^0-9]/g, "");
+      if (clean.startsWith("0")) {
+        clean = "62" + clean.slice(1);
+      }
+      body.phoneNumber = clean;
+    }
+
     const validatedData = teacherSchema.safeParse(body);
 
     if (!validatedData.success) {
@@ -33,7 +35,7 @@ export async function POST(req: Request) {
       const firstError =
         Object.values(errors)
           .flat()
-          .find((err) => err) || "Validation error";
+          .find((err) => err) || "Data yang dimasukkan tidak valid";
 
       return NextResponse.json({ message: firstError }, { status: 400 });
     }
@@ -44,40 +46,96 @@ export async function POST(req: Request) {
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return NextResponse.json(
-        { message: "Email already in use" },
+        { message: "Email sudah terdaftar. Silakan gunakan email lain atau langsung masuk." },
         { status: 400 }
       );
+    }
+
+    // Periksa NIP
+    const existingEmployee = await prisma.teacher.findUnique({
+      where: { employeeId },
+    });
+    if (existingEmployee) {
+      return NextResponse.json(
+        { message: "NIP ini sudah terdaftar di sistem." },
+        { status: 400 }
+      );
+    }
+
+    // Pastikan sekolah valid jika dipilih
+    let targetSchoolId = schoolId;
+    if (targetSchoolId) {
+      const schoolExists = await prisma.school.findUnique({
+        where: { id: targetSchoolId },
+      });
+      if (!schoolExists) {
+        const firstSchool = await prisma.school.findFirst();
+        targetSchoolId = firstSchool ? firstSchool.id : undefined;
+      }
+    } else {
+      const firstSchool = await prisma.school.findFirst();
+      targetSchoolId = firstSchool ? firstSchool.id : undefined;
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationCode = Math.random().toString(36).substring(2, 8);
 
-    await prisma.user.create({
+    const hasEmailConfig =
+      process.env.EMAIL_SERVER_USER &&
+      process.env.EMAIL_SERVER_PASSWORD &&
+      process.env.EMAIL_SERVER_PASSWORD !== "your-app-password" &&
+      !process.env.EMAIL_SERVER_PASSWORD.includes("your-");
+
+    const autoVerify = !hasEmailConfig;
+
+    const newTeacher = await prisma.user.create({
       data: {
         email,
         fullname,
         password: hashedPassword,
         role: Role.TEACHER,
-        verificationCode,
+        verificationCode: autoVerify ? null : verificationCode,
+        verified: autoVerify,
         teacher: {
-          create: { employeeId, phoneNumber, schoolId },
+          create: {
+            employeeId,
+            phoneNumber,
+            schoolId: targetSchoolId,
+          },
         },
       },
       include: { teacher: true },
     });
 
-    await sendVerificationEmail(email, verificationCode);
+    if (!autoVerify) {
+      try {
+        await sendVerificationEmail(email, verificationCode);
+      } catch (e) {
+        console.warn("Verification email sending failed:", e);
+      }
+    }
 
     return NextResponse.json(
-      { message: "Teacher registered. Check your email for verification." },
+      {
+        message: autoVerify
+          ? "Pendaftaran Guru BK berhasil! Akun Anda telah aktif dan dapat langsung digunakan untuk masuk."
+          : "Pendaftaran Guru BK berhasil! Silakan periksa email Anda untuk verifikasi.",
+        autoVerified: autoVerify,
+        user: {
+          id: newTeacher.id,
+          email: newTeacher.email,
+          fullname: newTeacher.fullname,
+          role: newTeacher.role,
+        },
+      },
       { status: 200 }
     );
   } catch (error) {
-    console.error("Registration Error:", error);
+    console.error("Teacher Registration Error:", error);
     return NextResponse.json(
       {
-        message: "Something went wrong",
-        error: error instanceof Error ? error.message : error,
+        message: "Terjadi kesalahan saat pendaftaran Guru BK.",
+        error: error instanceof Error ? error.message : String(error),
       },
       { status: 500 }
     );

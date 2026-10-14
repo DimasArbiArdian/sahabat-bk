@@ -4,22 +4,37 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminEmail = "admin@example.com"; // Ganti dengan email admin default
-  const adminPassword = "admin123"; // Ganti dengan password admin default
+  const adminEmail = "admin@example.com";
+  const adminPassword = "admin123";
 
-  // Cek apakah ada admin di database
+  // 1. Ensure default school exists
+  let school = await prisma.school.findFirst({
+    where: { name: "SMA Negeri 1 Prestasi Bangsa" },
+  });
+
+  if (!school) {
+    school = await prisma.school.create({
+      data: {
+        name: "SMA Negeri 1 Prestasi Bangsa",
+        address: "Jl. Pendidikan No. 45, Jakarta",
+      },
+    });
+    console.log("✅ Default school created successfully!");
+  }
+
+  // 2. Ensure admin exists
   const adminExists = await prisma.user.findFirst({
     where: { role: "ADMIN" },
   });
 
-  if (adminExists)
+  if (adminExists) {
     await prisma.user.deleteMany({
       where: {
         role: "ADMIN",
       },
     });
+  }
 
-  // if (!adminExists) {
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
   await prisma.user.create({
@@ -33,9 +48,6 @@ async function main() {
   });
 
   console.log("✅ Admin created successfully!");
-  // } else {
-  //   console.log("✅ Admin already exists, skipping creation.");
-  // }
 }
 
 main()
