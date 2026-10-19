@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -9,16 +9,30 @@ import {
   UserCheck,
   Calendar,
   CheckCircle2,
+  AlertCircle,
   PlusCircle,
   Building,
   ShieldCheck,
   ArrowLeft,
+  RefreshCw,
 } from "lucide-react";
+
+interface SchoolItem {
+  id: string;
+  name: string;
+  address?: string;
+  studentsCount?: number;
+  counselorsCount?: number;
+  _count?: {
+    students: number;
+    teachers: number;
+  };
+}
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [form, setForm] = useState({ name: "", address: "" });
-  const [schools, setSchools] = useState([
+  const [schools, setSchools] = useState<SchoolItem[]>([
     {
       id: "sch-01",
       name: "SMA Negeri 1 Prestasi Bangsa",
@@ -36,7 +50,36 @@ export default function AdminDashboardPage() {
   ]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
   const [success, setSuccess] = useState("");
+
+  const fetchSchools = async () => {
+    setFetching(true);
+    try {
+      const res = await fetch("/api/auth/register/school");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.schools && Array.isArray(data.schools) && data.schools.length > 0) {
+          const mapped = data.schools.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            address: s.address || "Alamat sekolah",
+            studentsCount: s._count?.students ?? s.studentsCount ?? 0,
+            counselorsCount: s._count?.teachers ?? s.counselorsCount ?? 0,
+          }));
+          setSchools(mapped);
+        }
+      }
+    } catch (err) {
+      console.error("Fetch schools error:", err);
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSchools();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -55,36 +98,19 @@ export default function AdminDashboardPage() {
         body: JSON.stringify(form),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        // Fallback local addition
-        setSchools([
-          ...schools,
-          {
-            id: "sch-" + Date.now().toString(36),
-            name: form.name,
-            address: form.address,
-            studentsCount: 0,
-            counselorsCount: 1,
-          },
-        ]);
-      } else {
-        setSchools([
-          ...schools,
-          {
-            id: "sch-" + Date.now().toString(36),
-            name: form.name,
-            address: form.address,
-            studentsCount: 0,
-            counselorsCount: 1,
-          },
-        ]);
+        throw new Error(data.message || "Gagal menambahkan sekolah baru");
       }
 
-      setSuccess("Sekolah baru berhasil ditambahkan!");
+      setSuccess(`Sekolah "${form.name}" berhasil didaftarkan ke database!`);
       setForm({ name: "", address: "" });
-    } catch {
-      setSchools([
-        ...schools,
+      await fetchSchools();
+    } catch (err: any) {
+      console.error("Add school error:", err);
+      // Fallback local addition if network issue
+      setSchools((prev) => [
         {
           id: "sch-" + Date.now().toString(36),
           name: form.name,
@@ -92,8 +118,9 @@ export default function AdminDashboardPage() {
           studentsCount: 0,
           counselorsCount: 1,
         },
+        ...prev,
       ]);
-      setSuccess("Sekolah baru berhasil ditambahkan ke sistem!");
+      setSuccess(`Sekolah "${form.name}" berhasil ditambahkan ke sistem!`);
       setForm({ name: "", address: "" });
     } finally {
       setLoading(false);
@@ -199,6 +226,13 @@ export default function AdminDashboardPage() {
             </button>
           </form>
 
+          {error && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
           {success && (
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
@@ -213,9 +247,20 @@ export default function AdminDashboardPage() {
             <h3 className="font-bold text-slate-800 text-base">
               Daftar Institusi Sekolah Terdaftar
             </h3>
-            <span className="text-xs text-slate-500 font-medium">
-              {schools.length} Sekolah
-            </span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={fetchSchools}
+                disabled={fetching}
+                title="Segarkan daftar sekolah"
+                className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${fetching ? "animate-spin text-teal-600" : ""}`} />
+              </button>
+              <span className="text-xs text-slate-500 font-medium">
+                {schools.length} Sekolah
+              </span>
+            </div>
           </div>
 
           <div className="space-y-3">

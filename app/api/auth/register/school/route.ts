@@ -14,7 +14,18 @@ const schoolSchema = z.object({
 export async function GET() {
   try {
     let schools = await prisma.school.findMany({
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        _count: {
+          select: {
+            students: true,
+            teachers: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
     });
 
     // Auto-seed default school if none exists
@@ -25,7 +36,14 @@ export async function GET() {
           address: "Jl. Pendidikan No. 45, Jakarta",
         },
       });
-      schools = [{ id: defaultSchool.id, name: defaultSchool.name }];
+      schools = [
+        {
+          id: defaultSchool.id,
+          name: defaultSchool.name,
+          address: defaultSchool.address,
+          _count: { students: 0, teachers: 0 },
+        },
+      ];
     }
 
     return NextResponse.json({ schools }, { status: 200 });
@@ -35,7 +53,12 @@ export async function GET() {
     return NextResponse.json(
       {
         schools: [
-          { id: "default-school-id", name: "SMA Negeri 1 Prestasi Bangsa" },
+          {
+            id: "default-school-id",
+            name: "SMA Negeri 1 Prestasi Bangsa",
+            address: "Jl. Pendidikan No. 45, Jakarta",
+            _count: { students: 0, teachers: 0 },
+          },
         ],
       },
       { status: 200 }
